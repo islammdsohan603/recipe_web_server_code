@@ -6,6 +6,51 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+app.use(cors());
+app.use(express.json());
+
+const uri = process.env.MONGO_DB_URI;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
+const run = async () => {
+  try {
+    await client.connect();
+
+    const database = client.db("allrecipedata");
+    const recipeCollection = database.collection("recipes");
+
+    // Popular recipes (sorted by likes)
+    app.get("/api/popular-recipe", async (req, res) => {
+      try {
+        const recipes = await recipeCollection
+          .find({})
+          .sort({ likesCount: -1 })
+          .limit(4)
+          .toArray();
+        res.send(recipes);
+      } catch (error) {
+        res.status(500).send({ message: "Server error", error: error.message });
+      }
+    });
+
+    await client.db("admin").command({ ping: 1 });
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!",
+    );
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+run();
+
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
