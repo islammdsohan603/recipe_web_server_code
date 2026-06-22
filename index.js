@@ -66,6 +66,25 @@ const run = async () => {
       }
     });
 
+    // get details by ID
+
+    app.get("/api/details/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await recipeCollection.findOne(query);
+        if (!result) {
+          return res.status(404).send({ message: "Recipe not found" });
+        }
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          message: "Invalid ID or Server Error",
+          error: error.message,
+        });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
