@@ -54,24 +54,33 @@ const run = async () => {
       }
     });
 
-    // get all & filltering recipe api
-
+    // get all & fillter recipe api
     app.get("/api/all-recipe", async (req, res) => {
       try {
-        const { category } = req.query;
+        const { category, page = 1, limit = 6 } = req.query;
         let query = {};
 
         if (category && category !== "all") {
-          query.category = category;
+          query.category = { $regex: `^${category}$`, $options: "i" };
         }
 
-        const data = await recipeCollection.find(query).toArray();
-        res.send(data);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const totalRecipes = await recipeCollection.countDocuments(query);
+
+        const data = await recipeCollection
+          .find(query)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .toArray();
+
+        res.send({
+          recipes: data,
+          totalPages: Math.ceil(totalRecipes / limit),
+        });
       } catch (error) {
         res.status(500).send({ message: "Server error", error: error.message });
       }
     });
-
     // get details by ID
 
     app.get("/api/details/:id", async (req, res) => {
