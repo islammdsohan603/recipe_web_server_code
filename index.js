@@ -25,6 +25,8 @@ const run = async () => {
 
     const database = client.db("allrecipedata");
     const recipeCollection = database.collection("recipes");
+    const usersdatabase = client.db("recipe");
+    const users = usersdatabase.collection("user");
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -97,6 +99,27 @@ const run = async () => {
           message: "Invalid ID or Server Error",
           error: error.message,
         });
+      }
+    });
+
+    // updata user name and image
+
+    app.patch("/api/users", async (req, res) => {
+      try {
+        const { email, name, url } = req.body;
+        const filter = { email: email };
+        const updateDoc = {
+          $set: {
+            name: name,
+            image: url,
+          },
+        };
+
+        const result = await users.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal Server Error" });
       }
     });
 
