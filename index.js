@@ -54,12 +54,18 @@ const run = async () => {
       }
     });
 
-    // get all recipe api
+    // get all & filltering recipe api
 
     app.get("/api/all-recipe", async (req, res) => {
       try {
-        const data = await recipeCollection.find().toArray();
+        const { category } = req.query;
+        let query = {};
 
+        if (category && category !== "all") {
+          query.category = category;
+        }
+
+        const data = await recipeCollection.find(query).toArray();
         res.send(data);
       } catch (error) {
         res.status(500).send({ message: "Server error", error: error.message });
