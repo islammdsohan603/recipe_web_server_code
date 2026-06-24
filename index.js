@@ -27,6 +27,7 @@ const run = async () => {
     const recipeCollection = database.collection("recipes");
     const usersdatabase = client.db("recipe");
     const users = usersdatabase.collection("user");
+    const newrecipe = database.collection("newrecipe");
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -121,6 +122,14 @@ const run = async () => {
         console.error(error);
         res.status(500).send({ message: "Internal Server Error" });
       }
+    });
+
+    // post new recipe data
+
+    app.post("/api/recipe", async (req, res) => {
+      const recipe = req.body;
+      const result = await newrecipe.insertOne(recipe);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
