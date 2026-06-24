@@ -145,7 +145,7 @@ const run = async () => {
 
     // view recipe data
 
-    app.get("/api/viewdetails/:id", async (req, res) => {
+    app.get("/api/view-details/:id", async (req, res) => {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -157,6 +157,46 @@ const run = async () => {
       } catch (error) {
         res.status(500).send({
           message: "Invalid ID or Server Error",
+          error: error.message,
+        });
+      }
+    });
+
+    // view recipe update data
+
+    app.patch("/api/update-recipe", async (req, res) => {
+      try {
+        const { id, ...updateData } = req.body;
+
+        if (!id) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Recipe ID is required" });
+        }
+
+        const filter = { _id: new ObjectId(id) };
+
+        const updateDoc = {
+          $set: updateData,
+        };
+
+        const result = await newrecipe.updateOne(filter, updateDoc);
+
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Recipe not found" });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Recipe updated successfully",
+          result,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
           error: error.message,
         });
       }
