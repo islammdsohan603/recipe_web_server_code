@@ -202,6 +202,42 @@ const run = async () => {
       }
     });
 
+    // view recipe delete api create
+    app.delete("/api/delete-view-recipe", async (req, res) => {
+      try {
+        const id = req.query.id;
+
+        if (!id) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Recipe ID is required" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+
+        const result = await newrecipe.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Recipe not found" });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: "Recipe deleted successfully",
+          result,
+        });
+      } catch (error) {
+        console.error("Delete Error:", error);
+        res.status(500).json({
+          success: false,
+          message: "Internal server error",
+          error: error.message,
+        });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
