@@ -238,7 +238,7 @@ const run = async () => {
       }
     });
 
-    // Unique Like API
+    // Unique Like Count API
     app.patch("/api/recipe/like/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -296,6 +296,15 @@ const run = async () => {
           error: error.message,
         });
       }
+    });
+
+    // my recipe api create
+
+    app.get("/api/my-recipe", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await newrecipe.find(query).toArray();
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
