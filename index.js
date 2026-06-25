@@ -238,6 +238,39 @@ const run = async () => {
       }
     });
 
+    // Like Count API
+
+    app.patch("/api/recipe/like/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const updateDoc = { $inc: { likesCount: 1 } };
+        let result = await recipeCollection.updateOne(query.updateDoc);
+
+        if (result.matchedCount === 0) {
+          result = await newrecipe.updateOne(query, updateDoc);
+        }
+
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Recipe not found" });
+        }
+
+        res
+          .status(200)
+          .json({ success: false, message: "liked successfully!" });
+      } catch (error) {
+        res
+          .status(500)
+          .json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+          });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
