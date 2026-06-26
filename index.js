@@ -126,11 +126,28 @@ const run = async () => {
     });
 
     // post new recipe data
-
     app.post("/api/recipe", async (req, res) => {
-      const recipe = req.body;
-      const result = await newrecipe.insertOne(recipe);
-      res.send(result);
+      try {
+        const recipeData = req.body;
+
+        const finalRecipe = {
+          ...recipeData,
+          email:
+            recipeData.email || recipeData.userEmail || recipeData.authorEmail,
+        };
+
+        if (!finalRecipe.email) {
+          return res.status(400).json({
+            success: false,
+            message: "User email is required to add a recipe",
+          });
+        }
+
+        const result = await newrecipe.insertOne(finalRecipe);
+        res.status(201).send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Server error", error: error.message });
+      }
     });
 
     // add new recipe data get
