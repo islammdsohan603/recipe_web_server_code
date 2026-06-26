@@ -28,6 +28,7 @@ const run = async () => {
     const usersdatabase = client.db("recipe");
     const users = usersdatabase.collection("user");
     const newrecipe = database.collection("newrecipe");
+    const reportsCollection = database.collection("reports");
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -395,6 +396,43 @@ const run = async () => {
         });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Reports api
+
+    app.post("/api/recipe/report", async (req, res) => {
+      try {
+        const { recipeId, recipeName, userEmail, reason, details } = req.body;
+
+        if (!recipeId || !reason) {
+          return res.status(400).json({
+            success: false,
+            message: "Recipe ID and Reason are required",
+          });
+        }
+
+        const reportDoc = {
+          recipeId: new ObjectId(recipeId),
+          recipeName,
+          userEmail: userEmail || "Anonymous",
+          reason,
+          details: details || "",
+          createdAt: new Date(),
+        };
+
+        const result = await reportsCollection.insertOne(reportDoc);
+        res.status(201).json({
+          success: true,
+          message: "Report submitted successfully!",
+          result,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Server error",
+          error: error.message,
+        });
       }
     });
 
