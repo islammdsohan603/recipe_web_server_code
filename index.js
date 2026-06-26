@@ -308,26 +308,43 @@ const run = async () => {
     });
 
     // user like count  API
-    // user like count API ঠিক করুন
+
     app.get("/api/user-liked-count", async (req, res) => {
       try {
         const { email } = req.query;
         if (!email) return res.status(400).json({ error: "Email is required" });
 
-        // ১. মূল কালেকশন থেকে কাউন্ট করুন
         const mainCollectionCount = await recipeCollection.countDocuments({
           likedBy: email,
         });
 
-        // ২. ইউজারদের তৈরি করা নতুন রেসিপি কালেকশন থেকেও কাউন্ট করুন
         const newCollectionCount = await newrecipe.countDocuments({
           likedBy: email,
         });
 
-        // দুটি যোগ করে মোট লাইক সংখ্যা পাঠান
         const totalCount = mainCollectionCount + newCollectionCount;
 
         res.status(200).json({ count: totalCount });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // favorites api
+    app.get("/api/user-favorites", async (req, res) => {
+      try {
+        const { email } = req.query;
+        if (!email) return res.status(400).json({ error: "Email is required" });
+
+        const mainFavorites = await recipeCollection
+          .find({ favoritedBy: email })
+          .toArray();
+        const newFavorites = await newrecipe
+          .find({ favoritedBy: email })
+          .toArray();
+
+        const allFavorites = [...mainFavorites, ...newFavorites];
+        res.status(200).json(allFavorites);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
