@@ -350,6 +350,54 @@ const run = async () => {
       }
     });
 
+    // single favorites api
+    app.patch("/api/recipe/favorite/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { email } = req.body;
+
+        if (!email)
+          return res
+            .status(400)
+            .json({ success: false, message: "User email is required" });
+        if (!ObjectId.isValid(id))
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid Recipe ID" });
+
+        const query = { _id: new ObjectId(id) };
+        let recipe =
+          (await recipeCollection.findOne(query)) ||
+          (await newrecipe.findOne(query));
+
+        if (!recipe)
+          return res
+            .status(404)
+            .json({ success: false, message: "Recipe not found" });
+
+        const isFavorited =
+          recipe.favoritedBy && recipe.favoritedBy.includes(email);
+        const updateDoc = isFavorited
+          ? { $pull: { favoritedBy: email } }
+          : { $addToSet: { favoritedBy: email } };
+
+        let result = await recipeCollection.updateOne(query, updateDoc);
+        if (result.matchedCount === 0) {
+          result = await newrecipe.updateOne(query, updateDoc);
+        }
+
+        res.status(200).json({
+          success: true,
+          isFavorited: !isFavorited,
+          message: isFavorited
+            ? "Removed from favorites"
+            : "Added to favorites",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
