@@ -546,6 +546,32 @@ const run = async () => {
       }
     });
 
+    // my paymant get
+    app.get("/api/my-purchased-recipes", async (req, res) => {
+      try {
+        const email = req.query.email;
+
+        if (!email) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Email is required" });
+        }
+
+        const result = await paymentsCollection
+          .find({ userEmail: email })
+          .toArray();
+
+        res.status(200).send(result);
+      } catch (error) {
+        console.error("Error fetching purchased recipes:", error);
+        res.status(500).json({
+          success: false,
+          message: "Server error",
+          error: error.message,
+        });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
