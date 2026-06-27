@@ -30,6 +30,7 @@ const run = async () => {
     const users = usersdatabase.collection("user");
     const newrecipe = database.collection("newrecipe");
     const reportsCollection = database.collection("reports");
+    const paymentsCollection = database.collection("payments");
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -499,6 +500,49 @@ const run = async () => {
           message: "Internal Server Error",
           error: error.message,
         });
+      }
+    });
+
+    // my paymants
+    app.post("/api/save-payment", async (req, res) => {
+      try {
+        const { sessionId, recipeId, recipeName, userEmail, price } = req.body;
+
+        if (!sessionId || !recipeId || !userEmail) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Missing required fields" });
+        }
+
+        const alreadySaved = await paymentsCollection.findOne({
+          sessionId: sessionId,
+        });
+        if (alreadySaved) {
+          return res
+            .status(200)
+            .json({ success: true, message: "Payment already saved" });
+        }
+
+        const paymentDoc = {
+          sessionId,
+          recipeId,
+          recipeName: recipeName || "Premium Recipe",
+          userEmail,
+          price: parseFloat(price),
+          createdAt: new Date(),
+        };
+
+        const result = await paymentsCollection.insertOne(paymentDoc);
+        res.status(201).json({
+          success: true,
+          message: "Payment saved successfully!",
+          result,
+        });
+      } catch (error) {
+        console.error("Error saving payment:", error);
+        res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
       }
     });
 
