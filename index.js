@@ -31,6 +31,7 @@ const run = async () => {
     const newrecipe = database.collection("newrecipe");
     const reportsCollection = database.collection("reports");
     const paymentsCollection = database.collection("payments");
+    const favoritesCollection = database.collection("favorites");
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -351,20 +352,15 @@ const run = async () => {
     });
 
     // favorites api
-    app.get("/api/user-favorites", async (req, res) => {
+    app.get("/api/my-favorites", async (req, res) => {
       try {
         const { email } = req.query;
         if (!email) return res.status(400).json({ error: "Email is required" });
 
-        const mainFavorites = await recipeCollection
-          .find({ favoritedBy: email })
+        const favorites = await favoritesCollection
+          .find({ userEmail: email })
           .toArray();
-        const newFavorites = await newrecipe
-          .find({ favoritedBy: email })
-          .toArray();
-
-        const allFavorites = [...mainFavorites, ...newFavorites];
-        res.status(200).json(allFavorites);
+        res.status(200).json(favorites);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -373,46 +369,37 @@ const run = async () => {
     // single favorites api
     app.patch("/api/recipe/favorite/:id", async (req, res) => {
       try {
-        const id = req.params.id;
-        const { email } = req.body;
+        const { id } = req.params;
+        const { email, recipeData } = req.body;
 
         if (!email)
           return res
             .status(400)
-            .json({ success: false, message: "User email is required" });
-        if (!ObjectId.isValid(id))
-          return res
-            .status(400)
-            .json({ success: false, message: "Invalid Recipe ID" });
+            .json({ success: false, message: "Email required" });
 
-        const query = { _id: new ObjectId(id) };
-        let recipe =
-          (await recipeCollection.findOne(query)) ||
-          (await newrecipe.findOne(query));
+        const query = { recipeId: id, userEmail: email };
+        const existing = await favoritesCollection.findOne(query);
 
-        if (!recipe)
-          return res
-            .status(404)
-            .json({ success: false, message: "Recipe not found" });
-
-        const isFavorited =
-          recipe.favoritedBy && recipe.favoritedBy.includes(email);
-        const updateDoc = isFavorited
-          ? { $pull: { favoritedBy: email } }
-          : { $addToSet: { favoritedBy: email } };
-
-        let result = await recipeCollection.updateOne(query, updateDoc);
-        if (result.matchedCount === 0) {
-          result = await newrecipe.updateOne(query, updateDoc);
+        if (existing) {
+          await favoritesCollection.deleteOne(query);
+          return res.status(200).json({
+            success: true,
+            isFavorited: false,
+            message: "Removed from favorites",
+          });
+        } else {
+          await favoritesCollection.insertOne({
+            ...recipeData,
+            recipeId: id,
+            userEmail: email,
+            createdAt: new Date(),
+          });
+          return res.status(200).json({
+            success: true,
+            isFavorited: true,
+            message: "Added to favorites",
+          });
         }
-
-        res.status(200).json({
-          success: true,
-          isFavorited: !isFavorited,
-          message: isFavorited
-            ? "Removed from favorites"
-            : "Added to favorites",
-        });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
       }
