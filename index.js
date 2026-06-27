@@ -10,6 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 const uri = process.env.MONGO_DB_URI;
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -448,6 +449,54 @@ const run = async () => {
         res.status(500).json({
           success: false,
           message: "Server error",
+          error: error.message,
+        });
+      }
+    });
+
+    // paymants systam
+
+    app.post("/api/create-checkout-session", async (req, res) => {
+      try {
+        const { recipeId, recipeName, recipeImage, price, userEmail } =
+          req.body;
+
+        if (!recipeId || !price || !userEmail) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Missing required fields" });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ["card"],
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: recipeName || "Premium Recipe",
+                  images: recipeImage ? [recipeImage] : [],
+                  metadata: {
+                    recipeId: recipeId.toString(),
+                  },
+                },
+                unit_amount: Math.round(price * 100),
+              },
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          customer_email: userEmail,
+          success_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/dashboard/user/paymant/success?session_id={CHECKOUT_SESSION_ID}&recipeId=${recipeId}`,
+          cancel_url: `${process.env.NEXT_PUBLIC_CLIENT_URL}/details/${recipeId}`,
+        });
+
+        res.status(200).json({ id: session.id, url: session.url });
+      } catch (error) {
+        console.error("🔴 STRIPE BACKEND ERROR:", error.message);
+        res.status(500).json({
+          success: false,
+          message: "Internal Server Error",
           error: error.message,
         });
       }
