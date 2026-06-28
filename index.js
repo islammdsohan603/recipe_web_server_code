@@ -22,7 +22,7 @@ const client = new MongoClient(uri, {
 
 const run = async () => {
   try {
-    await client.connect();
+    // await client.connect();
 
     const database = client.db("allrecipedata");
     const recipeCollection = database.collection("recipes");
@@ -90,22 +90,26 @@ const run = async () => {
     });
     // get details by ID
 
-    app.get("/api/details/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const query = { _id: new ObjectId(id) };
-        const result = await recipeCollection.findOne(query);
-        if (!result) {
-          return res.status(404).send({ message: "Recipe not found" });
+    app.get(
+      "/api/details/:id",
+
+      async (req, res) => {
+        try {
+          const id = req.params.id;
+          const query = { _id: new ObjectId(id) };
+          const result = await recipeCollection.findOne(query);
+          if (!result) {
+            return res.status(404).send({ message: "Recipe not found" });
+          }
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            message: "Invalid ID or Server Error",
+            error: error.message,
+          });
         }
-        res.send(result);
-      } catch (error) {
-        res.status(500).send({
-          message: "Invalid ID or Server Error",
-          error: error.message,
-        });
-      }
-    });
+      },
+    );
 
     // updata user name and image
 
@@ -560,7 +564,7 @@ const run = async () => {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
     );
