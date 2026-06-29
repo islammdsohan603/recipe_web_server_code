@@ -575,16 +575,54 @@ const run = async () => {
 
     // gmail api
 
+    // gmail api - ওটিপি পাঠানোর জন্য আপডেট করা হলো
     app.post("/api/send-email", async (req, res) => {
-      const { name, email } = req.query;
-      const mailopation = {
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: "WelCome",
-        html: `<h1> WelCome to Page </h1>`,
-      };
+      try {
+        const { name, email } = req.body; // query-র বদলে বডি থেকে ডাটা নেওয়া ভালো
 
-      transporter.sendMail(mailopation);
+        if (!email) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Email is required" });
+        }
+
+        // ১. ৬ ডিজিটের একটি র্যান্ডম OTP তৈরি করা হলো
+        const otp = Math.floor(100000 + Math.random() * 900000);
+
+        // ২. ইমেইলের বডি ও প্রিমিয়াম ডিজাইন টেমপ্লেট
+        const mailOptions = {
+          from: `"RecipeHub Community" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "Your RecipeHub Verification Code",
+          html: `
+        <div style="font-family: sans-serif; background-color: #0c0604; color: #ffffff; padding: 40px; border-radius: 20px; max-width: 500px; margin: auto; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+          <p style="color: #ff6d33; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; font-size: 12px;">RecipeHub</p>
+          <h1 style="margin-top: 0; font-size: 24px; color: #fff;">Welcome to the Kitchen, Chef ${name || "User"}!</h1>
+          <p style="color: #cdb7aa; font-size: 14px; line-height: 1.5;">Thank you for joining our community. Use the verification code below to complete your registration.</p>
+          <div style="background-color: #1a0f0c; border: 1px solid #ff6d33; padding: 15px 30px; display: inline-block; border-radius: 12px; margin: 25px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ff6d33; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="color: #7a6a60; font-size: 12px; margin-top: 20px;">This code is valid for 5 minutes. If you did not request this, please ignore this email.</p>
+        </div>
+      `,
+        };
+
+        // ৩. ইমেইল পাঠানো হচ্ছে
+        await transporter.sendMail(mailOptions);
+
+        // এখানে আপনি চাইলে OTP-টি আপনার ডাটাবেসের 'otps' নামক কালেকশনে সেভ করে রাখতে পারেন পরবর্তী ভেরিফিকেশনের জন্য
+
+        res
+          .status(200)
+          .json({ success: true, message: "OTP sent successfully!", otp });
+      } catch (error) {
+        console.error("Email send error:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to send OTP",
+          error: error.message,
+        });
+      }
     });
 
     // await client.db("admin").command({ ping: 1 });
