@@ -1,10 +1,11 @@
 const express = require("express");
+const nodemailer = require("nodemailer");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +18,14 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
+  },
+});
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.PASS,
   },
 });
 
@@ -562,6 +571,20 @@ const run = async () => {
           error: error.message,
         });
       }
+    });
+
+    // gmail api
+
+    app.post("/api/send-email", async (req, res) => {
+      const { name, email } = req.query;
+      const mailopation = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "WelCome",
+        html: `<h1> WelCome to Page </h1>`,
+      };
+
+      transporter.sendMail(mailopation);
     });
 
     // await client.db("admin").command({ ping: 1 });
