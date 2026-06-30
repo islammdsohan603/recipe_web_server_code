@@ -1,14 +1,20 @@
 const express = require("express");
 const nodemailer = require("nodemailer");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: [process.env.NEXT_PUBLIC_CLIENT_URL, "http://localhost:3000"],
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = process.env.MONGO_DB_URI;
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -41,6 +47,50 @@ const run = async () => {
     const reportsCollection = database.collection("reports");
     const paymentsCollection = database.collection("payments");
     const favoritesCollection = database.collection("favorites");
+
+    // =============================================
+    // JWT AUTH & MIDDLEWARE
+    // =============================================
+    const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret_key_for_dev";
+
+    // Generate token endpoint
+    app.post("/api/auth/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, JWT_SECRET, { expiresIn: "1d" });
+      
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      })
+      .send({ success: true });
+    });
+
+    // Clear token on logout
+    app.post("/api/auth/logout", async (req, res) => {
+      res.clearCookie("token", {
+        maxAge: 0,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      })
+      .send({ success: true });
+    });
+
+    // Verify Token Middleware
+    const verifyToken = (req, res, next) => {
+      const token = req.cookies?.token;
+      if (!token) {
+        return res.status(401).send({ message: "Unauthorized access" });
+      }
+      jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "Unauthorized access" });
+        }
+        req.user = decoded;
+        next();
+      });
+    };
+    // =============================================
 
     // Popular recipes (sorted by likes)
     app.get("/api/popular-recipe", async (req, res) => {
@@ -77,7 +127,9 @@ const run = async () => {
         let query = {};
 
         if (category && category !== "all") {
-          query.category = { $regex: `^${category}$`, $options: "i" };
+          // Splitting categories by comma if multiple are sent, then using $in
+          const categoryArray = category.split(',').map(c => new RegExp(`^${c.trim()}$`, "i"));
+          query.category = { $in: categoryArray };
         }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -578,7 +630,7 @@ const run = async () => {
     // =============================================
 
     // Admin Stats Overview
-    app.get("/api/admin/stats", async (req, res) => {
+    app.get("/api/admin/stats", verifyToken, async (req, res) => {
       try {
         const usersDb = client.db("recipe");
         const usersCollection = usersDb.collection("user");
@@ -605,7 +657,7 @@ const run = async () => {
     });
 
     // Admin Get All Users
-    app.get("/api/admin/users", async (req, res) => {
+    app.get("/api/admin/users", verifyToken, async (req, res) => {
       try {
         const usersDb = client.db("recipe");
         const usersCollection = usersDb.collection("user");
@@ -617,7 +669,7 @@ const run = async () => {
     });
 
     // Admin Block / Unblock User
-    app.patch("/api/admin/users/:id", async (req, res) => {
+    app.patch("/api/admin/users/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
         const { isBlocked } = req.body;
@@ -643,7 +695,7 @@ const run = async () => {
     });
 
     // Admin Get All Recipes (both collections)
-    app.get("/api/admin/recipes", async (req, res) => {
+    app.get("/api/admin/recipes", verifyToken, async (req, res) => {
       try {
         const mainRecipes = await recipeCollection.find({}).toArray();
         const newRecipes = await newrecipe.find({}).toArray();
@@ -660,7 +712,7 @@ const run = async () => {
     });
 
     // Admin Delete Recipe
-    app.delete("/api/admin/recipes/:id", async (req, res) => {
+    app.delete("/api/admin/recipes/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
         const { source } = req.query;
@@ -695,7 +747,7 @@ const run = async () => {
     });
 
     // Admin Edit Recipe
-    app.patch("/api/admin/recipes/:id", async (req, res) => {
+    app.patch("/api/admin/recipes/:id", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
         const { source, ...updateData } = req.body;
@@ -731,7 +783,7 @@ const run = async () => {
     });
 
     // Admin Feature / Unfeature Recipe
-    app.patch("/api/admin/recipes/:id/feature", async (req, res) => {
+    app.patch("/api/admin/recipes/:id/feature", verifyToken, async (req, res) => {
       try {
         const { id } = req.params;
         const { isFeatured, source } = req.body;
@@ -769,7 +821,7 @@ const run = async () => {
     });
 
     // Admin Get All Reports
-    app.get("/api/admin/reports", async (req, res) => {
+    app.get("/api/admin/reports", verifyToken, async (req, res) => {
       try {
         const reports = await reportsCollection.find({}).sort({ createdAt: -1 }).toArray();
         res.status(200).json(reports);
