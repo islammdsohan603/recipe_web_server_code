@@ -573,6 +573,215 @@ const run = async () => {
       }
     });
 
+    // =============================================
+    // ADMIN ROUTES
+    // =============================================
+
+    // Admin Stats Overview
+    app.get("/api/admin/stats", async (req, res) => {
+      try {
+        const usersDb = client.db("recipe");
+        const usersCollection = usersDb.collection("user");
+
+        const totalUsers = await usersCollection.countDocuments();
+        const totalRecipesMain = await recipeCollection.countDocuments();
+        const totalRecipesNew = await newrecipe.countDocuments();
+        const totalRecipes = totalRecipesMain + totalRecipesNew;
+        const totalPremiumMembers = await paymentsCollection.aggregate([
+          { $group: { _id: "$userEmail" } },
+          { $count: "count" }
+        ]).toArray();
+        const totalReports = await reportsCollection.countDocuments();
+
+        res.status(200).json({
+          totalUsers,
+          totalRecipes,
+          totalPremiumMembers: totalPremiumMembers[0]?.count || 0,
+          totalReports,
+        });
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Get All Users
+    app.get("/api/admin/users", async (req, res) => {
+      try {
+        const usersDb = client.db("recipe");
+        const usersCollection = usersDb.collection("user");
+        const allUsers = await usersCollection.find({}).toArray();
+        res.status(200).json(allUsers);
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Block / Unblock User
+    app.patch("/api/admin/users/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { isBlocked } = req.body;
+        const usersDb = client.db("recipe");
+        const usersCollection = usersDb.collection("user");
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { isBlocked: !!isBlocked } }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: isBlocked ? "User blocked successfully" : "User unblocked successfully",
+        });
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Get All Recipes (both collections)
+    app.get("/api/admin/recipes", async (req, res) => {
+      try {
+        const mainRecipes = await recipeCollection.find({}).toArray();
+        const newRecipes = await newrecipe.find({}).toArray();
+
+        const allRecipes = [
+          ...mainRecipes.map(r => ({ ...r, source: "main" })),
+          ...newRecipes.map(r => ({ ...r, source: "new" })),
+        ];
+
+        res.status(200).json(allRecipes);
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Delete Recipe
+    app.delete("/api/admin/recipes/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { source } = req.query;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ success: false, message: "Invalid ID" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        let result;
+
+        if (source === "main") {
+          result = await recipeCollection.deleteOne(query);
+        } else if (source === "new") {
+          result = await newrecipe.deleteOne(query);
+        } else {
+          // Try both
+          result = await recipeCollection.deleteOne(query);
+          if (result.deletedCount === 0) {
+            result = await newrecipe.deleteOne(query);
+          }
+        }
+
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ success: false, message: "Recipe not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Recipe deleted successfully" });
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Edit Recipe
+    app.patch("/api/admin/recipes/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { source, ...updateData } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ success: false, message: "Invalid ID" });
+        }
+
+        delete updateData._id;
+        const query = { _id: new ObjectId(id) };
+        const updateDoc = { $set: updateData };
+        let result;
+
+        if (source === "main") {
+          result = await recipeCollection.updateOne(query, updateDoc);
+        } else if (source === "new") {
+          result = await newrecipe.updateOne(query, updateDoc);
+        } else {
+          result = await recipeCollection.updateOne(query, updateDoc);
+          if (result.matchedCount === 0) {
+            result = await newrecipe.updateOne(query, updateDoc);
+          }
+        }
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ success: false, message: "Recipe not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Recipe updated successfully" });
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Feature / Unfeature Recipe
+    app.patch("/api/admin/recipes/:id/feature", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { isFeatured, source } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({ success: false, message: "Invalid ID" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const updateDoc = { $set: { isFeatured: !!isFeatured } };
+        let result;
+
+        if (source === "main") {
+          result = await recipeCollection.updateOne(query, updateDoc);
+        } else if (source === "new") {
+          result = await newrecipe.updateOne(query, updateDoc);
+        } else {
+          result = await recipeCollection.updateOne(query, updateDoc);
+          if (result.matchedCount === 0) {
+            result = await newrecipe.updateOne(query, updateDoc);
+          }
+        }
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ success: false, message: "Recipe not found" });
+        }
+
+        res.status(200).json({
+          success: true,
+          message: isFeatured ? "Recipe featured successfully" : "Recipe unfeatured successfully",
+        });
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // Admin Get All Reports
+    app.get("/api/admin/reports", async (req, res) => {
+      try {
+        const reports = await reportsCollection.find({}).sort({ createdAt: -1 }).toArray();
+        res.status(200).json(reports);
+      } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+      }
+    });
+
+    // =============================================
+    // END OF ADMIN ROUTES
+    // =============================================
+
     // gmail api
 
     // gmail api - ওটিপি পাঠানোর জন্য আপডেট করা হলো
