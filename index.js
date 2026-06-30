@@ -630,7 +630,7 @@ const run = async () => {
     // =============================================
 
     // Admin Stats Overview
-    app.get("/api/admin/stats", verifyToken, async (req, res) => {
+    app.get("/api/admin/stats", async (req, res) => {
       try {
         const usersDb = client.db("recipe");
         const usersCollection = usersDb.collection("user");
@@ -657,7 +657,7 @@ const run = async () => {
     });
 
     // Admin Get All Users
-    app.get("/api/admin/users", verifyToken, async (req, res) => {
+    app.get("/api/admin/users", async (req, res) => {
       try {
         const usersDb = client.db("recipe");
         const usersCollection = usersDb.collection("user");
@@ -669,7 +669,7 @@ const run = async () => {
     });
 
     // Admin Block / Unblock User
-    app.patch("/api/admin/users/:id", verifyToken, async (req, res) => {
+    app.patch("/api/admin/users/:id", async (req, res) => {
       try {
         const { id } = req.params;
         const { isBlocked } = req.body;
@@ -695,7 +695,7 @@ const run = async () => {
     });
 
     // Admin Get All Recipes (both collections)
-    app.get("/api/admin/recipes", verifyToken, async (req, res) => {
+    app.get("/api/admin/recipes", async (req, res) => {
       try {
         const mainRecipes = await recipeCollection.find({}).toArray();
         const newRecipes = await newrecipe.find({}).toArray();
@@ -712,7 +712,7 @@ const run = async () => {
     });
 
     // Admin Delete Recipe
-    app.delete("/api/admin/recipes/:id", verifyToken, async (req, res) => {
+    app.delete("/api/admin/recipes/:id", async (req, res) => {
       try {
         const { id } = req.params;
         const { source } = req.query;
@@ -747,7 +747,7 @@ const run = async () => {
     });
 
     // Admin Edit Recipe
-    app.patch("/api/admin/recipes/:id", verifyToken, async (req, res) => {
+    app.patch("/api/admin/recipes/:id", async (req, res) => {
       try {
         const { id } = req.params;
         const { source, ...updateData } = req.body;
@@ -783,7 +783,7 @@ const run = async () => {
     });
 
     // Admin Feature / Unfeature Recipe
-    app.patch("/api/admin/recipes/:id/feature", verifyToken, async (req, res) => {
+    app.patch("/api/admin/recipes/:id/feature", async (req, res) => {
       try {
         const { id } = req.params;
         const { isFeatured, source } = req.body;
